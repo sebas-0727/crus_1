@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulario Avistamiento</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .imagen-ampliada {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+
+        .imagen-ampliada img {
+            max-width: 80%;
+            max-height: 80%;
+            transition: all 0.3s ease;
+        }
+
+        .imagen-ampliada.visible {
+            display: flex;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">Formulario de Avistamiento</h1>
+        
+        <!-- Formulario para registrar un avistamiento -->
+        <h2>Registrar Avistamiento</h2>
+        <form id="formRegistrar">
+            <div class="form-group">
+                <label for="ubicacion">Ubicación:</label>
+                <select id="ubicacion" name="ubicacion" class="form-control" required>
+                    <option value="">Seleccione una zona</option>
+                    <option value="zona_1">Zona 1</option>
+                    <option value="zona_2">Zona 2</option>
+                    <option value="zona_3">Zona 3</option>
+                    <option value="zona_4">Zona 4</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="hora">Hora:</label>
+                <input type="time" id="hora" name="hora" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="aspecto">Aspecto:</label>
+                <input type="text" id="aspecto" name="aspecto" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="ataco">Atacó:</label>
+                <select id="ataco" name="ataco" class="form-control" required>
+                    <option value="">¿Atacó?</option>
+                    <option value="si">Sí</option>
+                    <option value="no">No</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="imagen">Imagen:</label>
+                <input type="file" id="imagen" name="imagen" class="form-control" accept="image/*" required>
+            </div>
+            
+            <button type="button" onclick="registrarAvistamiento()" class="btn btn-primary">Registrar</button>
+        </form>
+        
+        <div id="mensaje" class="mt-3"></div>
+        
+        <hr>
+
+        <!-- Tabla para mostrar los avistamientos registrados -->
+        <h2>Avistamientos Registrados</h2>
+        <div id="tablaAvistamientos">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Ubicación</th>
+                        <th>Hora</th>
+                        <th>Aspecto</th>
+                        <th>Atacó</th>
+                        <th>Imagen</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoTabla">
+                    <!-- Los datos se llenarán aquí mediante JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Contenedor para la imagen ampliada -->
+        <div class="imagen-ampliada" id="imagenAmpliada">
+            <img id="imagenAmpliadaImg" src="" alt="Imagen Ampliada">
+        </div>
+    </div>
+    
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script>
+        // Función para registrar un avistamiento
+        function registrarAvistamiento() {
+            const ubicacion = document.getElementById('ubicacion').value;
+            const hora = document.getElementById('hora').value;
+            const aspecto = document.getElementById('aspecto').value;
+            const ataco = document.getElementById('ataco').value;
+            const imagen = document.getElementById('imagen').files[0];
+
+            if (!ubicacion || !hora || !aspecto || !ataco || !imagen) {
+                alert('Por favor, completa todos los campos.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('ubicacion', ubicacion);
+            formData.append('hora', hora);
+            formData.append('aspecto', aspecto);
+            formData.append('ataco', ataco);
+            formData.append('imagen', imagen);
+
+            fetch('/registrar_avistamiento', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('mensaje').innerHTML = `<div class="alert alert-success">${data.mensaje}</div>`;
+                document.getElementById('formRegistrar').reset();
+                // Redireccionar al usuario a la página /avistamiento después de registrar
+                window.location.href = '/avistador';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('mensaje').innerHTML = '<div class="alert alert-danger">Error al registrar avistamiento</div>';
+            });
+        }
+
+        // Función para cargar los avistamientos registrados
+        function cargarAvistamientos() {
+            fetch('/avistamientos_general')
+            .then(response => response.json())
+            .then(data => {
+                let html = '';
+                data.avistamientos.forEach(avistamiento => {
+                    const imagenSrc = `data:image/jpeg;base64,${avistamiento.imagen}`; // Asegúrate de que el tipo de imagen sea correcto
+                    html += `<tr>
+                                <td>${avistamiento.numero}</td>
+                                <td>${avistamiento.ubicacion}</td>
+                                <td>${avistamiento.hora}</td>
+                                <td>${avistamiento.aspecto}</td>
+                                <td>${avistamiento.ataco}</td>
+                                <td><img src="${imagenSrc}" alt="Imagen" style="width: 100px; height: auto; cursor: pointer;" onclick="mostrarImagenAmpliada('${imagenSrc}')"></td>
+                                <td><button class="btn btn-danger btn-sm" onclick="eliminarAvistamiento(${avistamiento.numero})">Eliminar</button></td>
+                            </tr>`;
+                });
+                document.getElementById('cuerpoTabla').innerHTML = html;
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Función para eliminar un avistamiento
+        function eliminarAvistamiento(numero) {
+            fetch(`/eliminar_avistamiento/${numero}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('mensaje').innerHTML = `<div class="alert alert-success">${data.mensaje}</div>`;
+                cargarAvistamientos();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('mensaje').innerHTML = '<div class="alert alert-danger">Error al eliminar avistamiento</div>';
+            });
+        }
+
+        // Función para mostrar la imagen ampliada
+        function mostrarImagenAmpliada(src) {
+            const imagenAmpliada = document.getElementById('imagenAmpliada');
+            const imagenAmpliadaImg = document.getElementById('imagenAmpliadaImg');
+            
+            imagenAmpliadaImg.src = src;
+            imagenAmpliada.classList.add('visible');
+        }
+
+        // Función para cerrar la imagen ampliada
+        function cerrarImagenAmpliada() {
+            const imagenAmpliada = document.getElementById('imagenAmpliada');
+            imagenAmpliada.classList.remove('visible');
+        }
+
+        // Cargar avistamientos al cargar la página
+        document.addEventListener('DOMContentLoaded', cargarAvistamientos);
+
+        // Evento para cerrar la imagen ampliada al hacer clic en ella
+        document.getElementById('imagenAmpliada').addEventListener('click', cerrarImagenAmpliada);
+    </script>
+</body>
+</html>
